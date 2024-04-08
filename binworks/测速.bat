@@ -1,1 +1,0 @@
-CloudflareSpeedTest.exe -url https://cesu.xloong.pp.ua/20m  -t 1 -n 200 -dn 10 -tl 250 -tll 40  -sl 5 -p 10 -f ip.txt -c -cc  US -tp 443
