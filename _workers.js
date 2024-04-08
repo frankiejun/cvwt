@@ -7,7 +7,7 @@ let userID = '21437046-58d7-40bd-84de-f048060fdd7e';
 
 const proxyIPs = ['cdn.xn--b6gac.eu.org', 'cdn-all.xn--b6gac.eu.org', 'workers.cloudflare.cyou'];
 
-let proxyIP = "192.9.250.249"; //proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
+let proxyIP = proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
 
 
 let dohURL = 'https://sky.rethinkdns.com/1:-Pf_____9_8A_AMAIgE8kMABVDDmKOHTAKg='; // https://cloudflare-dns.com/dns-query or https://dns.google/dns-query
@@ -200,7 +200,7 @@ async function vlessOverWSHandler(request) {
 				isDns = true;
 			}
 
-			// ["version", "¸½¼ÓĞÅÏ¢³¤¶È N"]
+			// ["version", "é™„åŠ ä¿¡æ¯é•¿åº¦ N"]
 			const vlessResponseHeader = new Uint8Array([vlessVersion[0], 0]);
 			const rawClientData = chunk.slice(rawDataIndex);
 
@@ -702,12 +702,12 @@ function getVLESSConfig(userIDs, hostName) {
 	let header = [];
 	const sublink = `https://${hostName}/sub/${userIDArray[0]}?format=clash`
 	const clash_link = `https://api.v1.mk/sub?target=clash&url=${encodeURIComponent(sublink)}&insert=false&emoji=true&list=false&tfo=false&scv=true&fdn=false&sort=false&new_name=true`;
-	header.push(`\n<p align="center"><img src="https://cloudflare-ipfs.com/ipfs/bafybeigd6i5aavwpr6wvnwuyayklq3omonggta4x2q7kpmgafj357nkcky" alt="Í¼Æ¬ÃèÊö" style="margin-bottom: -50px;">`);
+	header.push(`\n<p align="center"><img src="https://cloudflare-ipfs.com/ipfs/bafybeigd6i5aavwpr6wvnwuyayklq3omonggta4x2q7kpmgafj357nkcky" alt="å›¾ç‰‡æè¿°" style="margin-bottom: -50px;">`);
 	header.push(`\n<b style=" font-size: 15px;" >Welcome! This function generates configuration for VLESS protocol. If you found this useful, please check our GitHub project for more:</b>\n`);
-	header.push(`<b style=" font-size: 15px;" >»¶Ó­£¡ÕâÊÇÉú³É VLESS Ğ­ÒéµÄÅäÖÃ¡£Èç¹ûÄú·¢ÏÖÕâ¸öÏîÄ¿ºÜºÃÓÃ£¬Çë²é¿´ÎÒÃÇµÄ GitHub ÏîÄ¿¸øÎÒÒ»¸östar£º</b>\n`);
+	header.push(`<b style=" font-size: 15px;" >æ¬¢è¿ï¼è¿™æ˜¯ç”Ÿæˆ VLESS åè®®çš„é…ç½®ã€‚å¦‚æœæ‚¨å‘ç°è¿™ä¸ªé¡¹ç›®å¾ˆå¥½ç”¨ï¼Œè¯·æŸ¥çœ‹æˆ‘ä»¬çš„ GitHub é¡¹ç›®ç»™æˆ‘ä¸€ä¸ªstarï¼š</b>\n`);
 	header.push(`\n<a href="https://github.com/3Kmfi6HP/EDtunnel" target="_blank">EDtunnel - https://github.com/3Kmfi6HP/EDtunnel</a>\n`);
 	header.push(`\n<iframe src="https://ghbtns.com/github-btn.html?user=USERNAME&repo=REPOSITORY&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>\n\n`.replace(/USERNAME/g, "3Kmfi6HP").replace(/REPOSITORY/g, "EDtunnel"));
-	header.push(`<a href="//${hostName}/sub/${userIDArray[0]}" target="_blank">VLESS ½Úµã¶©ÔÄÁ¬½Ó</a>\n<a href="clash://install-config?url=${encodeURIComponent(clash_link)}" target="_blank">Clash for Windows ½Úµã¶©ÔÄÁ¬½Ó</a>\n<a href="${clash_link}" target="_blank">Clash ½Úµã¶©ÔÄÁ¬½Ó</a>\n<a href="https://sub.xf.free.hr/auto?host=${hostName}&uuid=${userIDArray[0]}" target="_blank">ÓÅÑ¡IP×Ô¶¯½Úµã¶©ÔÄ</a></p>\n`);
+	header.push(`<a href="//${hostName}/sub/${userIDArray[0]}" target="_blank">VLESS èŠ‚ç‚¹è®¢é˜…è¿æ¥</a>\n<a href="clash://install-config?url=${encodeURIComponent(clash_link)}" target="_blank">Clash for Windows èŠ‚ç‚¹è®¢é˜…è¿æ¥</a>\n<a href="${clash_link}" target="_blank">Clash èŠ‚ç‚¹è®¢é˜…è¿æ¥</a>\n<a href="https://sub.xf.free.hr/auto?host=${hostName}&uuid=${userIDArray[0]}" target="_blank">ä¼˜é€‰IPè‡ªåŠ¨èŠ‚ç‚¹è®¢é˜…</a></p>\n`);
 	header.push(``);
 
 	// Generate output string for each userID
@@ -718,7 +718,7 @@ function getVLESSConfig(userIDs, hostName) {
 		output.push(`${hashSeparator}\nv2ray default ip\n${separator}\n${vlessMain}\n${separator}`);
 		output.push(`${hashSeparator}\nv2ray with best ip\n${separator}\n${vlessSec}\n${separator}`);
 	});
-	output.push(`${hashSeparator}\n# Clash Proxy Provider ÅäÖÃ¸ñÊ½(configuration format)\nproxy-groups:\n  - name: UseProvider\n	type: select\n	use:\n	  - provider1\n	proxies:\n	  - Proxy\n	  - DIRECT\nproxy-providers:\n  provider1:\n	type: http\n	url: https://${hostName}/sub/${userIDArray[0]}?format=clash\n	interval: 3600\n	path: ./provider1.yaml\n	health-check:\n	  enable: true\n	  interval: 600\n	  # lazy: true\n	  url: http://www.gstatic.com/generate_204\n\n${hashSeparator}`);
+	output.push(`${hashSeparator}\n# Clash Proxy Provider é…ç½®æ ¼å¼(configuration format)\nproxy-groups:\n  - name: UseProvider\n	type: select\n	use:\n	  - provider1\n	proxies:\n	  - Proxy\n	  - DIRECT\nproxy-providers:\n  provider1:\n	type: http\n	url: https://${hostName}/sub/${userIDArray[0]}?format=clash\n	interval: 3600\n	path: ./provider1.yaml\n	health-check:\n	  enable: true\n	  interval: 600\n	  # lazy: true\n	  url: http://www.gstatic.com/generate_204\n\n${hashSeparator}`);
 
 	// HTML Head with CSS
 	const htmlHead = `
