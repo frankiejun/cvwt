@@ -62,6 +62,9 @@ Cloudflare 上建vless workers的及自动化优选IP的一揽子工具
     -h
         打印帮助说明
 ```
+工具代码来自于:   https://github.com/XIU2/CloudflareSpeedTest  
+我这个在此基础上做了修改。  
+
 
 
 ## License
