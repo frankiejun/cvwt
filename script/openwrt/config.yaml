@@ -40,7 +40,7 @@ CFST_SL: 5
 #是否按国家代码做分组筛选(是: true,否: false)
 CCFLAG: true
 #需要指定的国家代码,多个用逗号分隔(eg. US,JP)
-CCODE: US,JP
+CCODE:  
 #CF服务器对应端口
 CF_ADDR: 443
 

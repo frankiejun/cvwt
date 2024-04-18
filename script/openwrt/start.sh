@@ -1,35 +1,46 @@
 #!/bin/bash
 
+if [ $# -lt 1 ]; then
+  echo "start.sh config_file_path [ipfile]"
+  exit 0
+fi
+
+configfile=$1;
+ipfile=$2;
+
+echo "$configfile, $ipfile"
+
 ipzipfile="txt.zip"
 
 if [[ -e $ipzipfile ]]; then
   rm -rf $ipzipfile;
+  rm -rf *.csv
 fi;
 
 echo "0.读取配置文件"
-if [[ ! -e config.yaml ]]; then
-  echo "找不到config.yaml配置文件!"
+if [[ ! -e $configfile ]]; then
+  echo "找不到$configfile配置文件!"
   exit -1
 fi
 
-x_email=$(yq eval ".x_email" config.yaml)
-hostname=$(yq eval ".hostname" config.yaml)
-zone_id=$(yq eval ".zone_id" config.yaml)
-api_key=$(yq eval ".api_key" config.yaml)
-pause=$(yq eval ".pause" config.yaml)
-clien=$(yq eval ".clien" config.yaml)
-CFST_URL=$(yq eval ".CFST_URL" config.yaml)
-CFST_N=$(yq eval ".CFST_N" config.yaml)
-CFST_T=$(yq eval ".CFST_T" config.yaml)
-CFST_DN=$(yq eval ".CFST_DN" config.yaml)
-CFST_TL=$(yq eval ".CFST_TL" config.yaml)
-CFST_TLL=$(yq eval ".CFST_TLL" config.yaml)
-CFST_SL=$(yq eval ".CFST_SL" config.yaml)
-CCFLAG=$(yq eval ".CCFLAG" config.yaml)
-CCODE=$(yq eval ".CCODE" config.yaml)
-CF_ADDR=$(yq eval ".CF_ADDR" config.yaml)
-telegramBotToken=$(yq eval ".telegramBotToken" config.yaml)
-telegramBotUserId=$(yq eval ".telegramBotUserId" config.yaml)
+x_email=$(yq eval ".x_email" $configfile)
+hostname=$(yq eval ".hostname" $configfile)
+zone_id=$(yq eval ".zone_id" $configfile)
+api_key=$(yq eval ".api_key" $configfile)
+pause=$(yq eval ".pause" $configfile)
+clien=$(yq eval ".clien" $configfile)
+CFST_URL=$(yq eval ".CFST_URL" $configfile)
+CFST_N=$(yq eval ".CFST_N" $configfile)
+CFST_T=$(yq eval ".CFST_T" $configfile)
+CFST_DN=$(yq eval ".CFST_DN" $configfile)
+CFST_TL=$(yq eval ".CFST_TL" $configfile)
+CFST_TLL=$(yq eval ".CFST_TLL" $configfile)
+CFST_SL=$(yq eval ".CFST_SL" $configfile)
+CCFLAG=$(yq eval ".CCFLAG" $configfile)
+CCODE=$(yq eval ".CCODE" $configfile)
+CF_ADDR=$(yq eval ".CF_ADDR" $configfile)
+telegramBotToken=$(yq eval ".telegramBotToken" $configfile)
+telegramBotUserId=$(yq eval ".telegramBotUserId" $configfile)
 
 IFS=, read -r -a domains <<< "$hostname";
 IFS=, read -r -a countryCodes <<< "$CCODE";
@@ -43,7 +54,7 @@ if [ ${#domains[@]} -eq 0 ]; then
 fi
 
 #检查域名和国家代码是否一一对应
-if [ ! -z $CCFLAG ]; then
+if [ "$CCFLAG" = "true" ]; then
   echo "domain_num:$domain_num, countryCode_num:$countryCode_num"
 	if [ $domain_num -ne $countryCode_num ]; then
 		echo "The name and country code must correspond one to one!";
@@ -72,43 +83,44 @@ handle_err() {
 
 trap handle_err ERR
 
-echo "1.Download ip file."
-for i in {1..3}
-do
-	wget  -O $ipzipfile https://zip.baipiao.eu.org
-	
-	if [ $? != 0 ]; then
-	  echo "get ip file failed, try again"
-    sleep 1
-	  continue
-	else
-    echo "downloaded."
-    break
+if [ -z $ipfile ]; then
+  echo "1.Download ip file."
+  for i in {1..3}
+  do
+  	wget  -O $ipzipfile https://zip.baipiao.eu.org
+  	
+  	if [ $? != 0 ]; then
+  	  echo "get ip file failed, try again"
+      sleep 1
+  	  continue
+  	else
+      echo "downloaded."
+      break
+    fi
+  done
+  
+  
+  if [ -e $ipzipfile ]; then
+    unzip -o $ipzipfile
   fi
-done
-
-
-if [ -e $ipzipfile ]; then
-  unzip -o $ipzipfile
+  
+  
+  echo "2.Select the ip address of the desired port."
+  port=$( yq eval ".CF_ADDR" $configfile)
+  if [ -z $port ];then
+    port=443
+  fi;
+  
+  for file in $(find . -type f -name "*-[0-1]-$port.txt"); do
+      echo "handling: $file"
+      cat "$file" >> tmp.txt
+  done
+  
+  if [ -e tmp.txt ]; then
+    cat tmp.txt | sort -u > ip.txt
+    rm -rf tmp.txt
+  fi
 fi
-
-
-echo "2.Select the ip address of the desired port."
-port=$( yq eval ".CF_ADDR" config.yaml)
-if [ -z $port ];then
-  port=443
-fi;
-
-for file in $(find . -type f -name "*-[0-1]-$port.txt"); do
-    echo "handling: $file"
-    cat "$file" >> tmp.txt
-done
-
-if [ -e tmp.txt ]; then
-  cat tmp.txt | sort -u > ip.txt
-  rm -rf tmp.txt
-fi
-
 
 echo "Run scripts to test speed and update dns records."
 source cf_ddns

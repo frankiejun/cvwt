@@ -1,8 +1,7 @@
 #!/bin/bash
-##版本：V2.1.1
-	#新功能，支持更新优选完毕后推送至TG，再也不怕脚本没有成功运行了。
-	#使用脚本需要安装jq和timeout，新增openwrt专用cf_RE.sh文件，运行cf_RE.sh即可在openwrt安装jq和timeout两个扩展。
-	#其他linux请自行安装jq和timeout。
+#新功能，支持更新优选完毕后推送至TG，再也不怕脚本没有成功运行了。
+#使用脚本需要安装jq和timeout，新增openwrt专用cf_RE.sh文件，运行cf_RE.sh即可在openwrt安装jq和timeout两个扩展。
+#其他linux请自行安装jq和timeout。
 
 ipv4Regex="((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])";
 #默认关闭小云朵
@@ -82,12 +81,12 @@ fi;
 
 if [ "$IP_ADDR" = "ipv6" ]; then
     #开始优选IPv6
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f ipv6.txt $USECC $CCODE_IS
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f ipv6.txt $CF_ADDR $USECC $CCODE_IS"
+    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $USECC $CCODE_IS
+    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS"
     else
     #开始优选IPv4
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $CF_ADDR $USECC $CCODE_IS"
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $CF_ADDR $USECC $CCODE_IS
+    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS"
+    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS
 fi
 echo "测速完毕";
 if [ "$pause" = "false" ] ; then
