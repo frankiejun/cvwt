@@ -5,8 +5,8 @@ message_text=$pushmessage
 #解析模式，可选HTML或Markdown
 MODE='HTML'
 #api接口
-#telegramBotToken=$(yq eval ".telegramBotToken" config.yaml)
-#telegramBotUserId=$(yq eval ".telegramBotUserId" config.yaml)
+telegramBotToken=$(yq eval ".telegramBotToken" $configfile)
+telegramBotUserId=$(yq eval ".telegramBotUserId" $configfile)
 URL="https://api.telegram.org/bot${telegramBotToken}/sendMessage"
 if [[ -z ${telegramBotToken} ]]; then
    echo "未配置TG推送"

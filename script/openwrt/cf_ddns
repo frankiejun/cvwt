@@ -78,20 +78,20 @@ else
   CF_ADDR=" -tp 443";
 fi;
 
-if [ ! -z "$ipfile" ];then
-  ipflag="-f "
-else 
+if [ -z "$ipfile" ]; then
   ipflag=""
+else
+  ipflag="-f "
 fi
- 
+
 if [ "$IP_ADDR" = "ipv6" ]; then
     #开始优选IPv6
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $USECC $CCODE_IS
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS"
+    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $USECC $CCODE_IS
+    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
     else
     #开始优选IPv4
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS"
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $CF_ADDR $USECC $CCODE_IS
+    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
+    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS
 fi
 echo "测速完毕";
 if [ "$pause" = "false" ] ; then
