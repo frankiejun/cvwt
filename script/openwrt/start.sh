@@ -4,7 +4,7 @@ if [ $# -lt 1 ]; then
   echo "start.sh config_file_path [ipfile]"
   exit 0
 fi
-
+ 
 configfile=$1;
 ipfile=$2;
 

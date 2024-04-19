@@ -2,16 +2,16 @@
 ##cloudflare配置
 #cloudflare账号邮箱
 x_email:  
-  
+
 #域名(多个用逗号分隔)
 hostname: 
-  
+
 #空间ID
-zone_id: 
-  
+zone_id:
+
 #Global API Key
 api_key: 
-  
+
 
 ##openwrt科学上网插件配置
 #优选节点时是否自动停止科学上网服务 true: 自动停止 false: 不停止 默认为 true
@@ -40,7 +40,7 @@ CFST_SL: 5
 #是否按国家代码做分组筛选(是: true,否: false)
 CCFLAG: true
 #需要指定的国家代码,多个用逗号分隔(eg. US,JP)
-CCODE:  
+CCODE: 
 #CF服务器对应端口
 CF_ADDR: 443
 

@@ -78,7 +78,12 @@ else
   CF_ADDR=" -tp 443";
 fi;
 
-
+if [ ! -z "$ipfile" ];then
+  ipflag="-f "
+else 
+  ipflag=""
+fi
+ 
 if [ "$IP_ADDR" = "ipv6" ]; then
     #开始优选IPv6
     ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P -f $ipfile $USECC $CCODE_IS
