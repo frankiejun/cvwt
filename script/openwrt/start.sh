@@ -62,6 +62,11 @@ if [ "$CCFLAG" = "true" ]; then
   fi
 fi;
 
+ps -ef | grep $clien | grep -v "grep" > /dev/null
+if [ $? = 1 ]; then
+    /etc/init.d/$clien start
+    fi
+fi
 
 handle_err() {
   echo "Restore background process."
