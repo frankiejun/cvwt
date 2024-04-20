@@ -4,11 +4,11 @@ if [ $# -lt 1 ]; then
   echo "start.sh config_file_path [ipfile]"
   exit 0
 fi
- 
+
 configfile=$1;
 ipfile=$2;
 
-echo "$configfile, $ipfile"
+echo "configfile:$configfile, ipfile:$ipfile"
 
 ipzipfile="txt.zip"
 
@@ -62,31 +62,38 @@ if [ "$CCFLAG" = "true" ]; then
   fi
 fi;
 
-ps -ef | grep $clien | grep -v "grep" > /dev/null
-if [ $? = 1 ]; then
-    /etc/init.d/$clien start
-    fi
-fi
 
-handle_err() {
-  echo "Restore background process."
-  if  [ "$clien" = "6" ] ; then
+GetProxName(){
+  c=$1
+  if  [ "$c" = "6" ] ; then
   	CLIEN=bypass;
-  elif  [ "$clien" = "5" ] ; then
+  elif  [ "$c" = "5" ] ; then
   		CLIEN=openclash;
-  elif  [ "$clien" = "4" ] ; then
+  elif  [ "$c" = "4" ] ; then
   	CLIEN=clash;
-  elif  [ "$clien" = "3" ] ; then
+  elif  [ "$c" = "3" ] ; then
   		CLIEN=shadowsocksr;
-  elif  [ "$clien" = "2" ] ; then
+  elif  [ "$c" = "2" ] ; then
   			CLIEN=passwall2;
   			else
   			CLIEN=passwall;
   fi
-  /etc/init.d/$CLIEN start
+  echo $CLIEN
+}
+
+handle_err() {
+  echo "Restore background process."
+  proxy=$(GetProxName $clien)
+  /etc/init.d/$proxy start
 }
 
 trap handle_err ERR
+CLIEN=$(GetProxName $clien)
+ps -ef | grep $CLIEN | grep -v "grep" > /dev/null
+
+if [ $? = 1 ]; then
+    /etc/init.d/$CLIEN start
+fi
 
 if [ -z $ipfile ]; then
   echo "1.Download ip file."
