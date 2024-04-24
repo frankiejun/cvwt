@@ -21,10 +21,12 @@ pause:
 # 1: passwall 2: passwall2 3: ShadowSocksR Plus+ 4: clash 5: openclash 6: bypass
 clien: 
   1
+#同一域名更新的ip数量(如果设置值大于实际搜出的ip数量，以实际ip数量为准)
+multip:
 
 #测速地址  
 CFST_URL: 
-  https://cesu.fkj.pp.ua/20m
+  
 #测速线程数量；越多测速越快，性能弱的设备 (如路由器) 请勿太高；(默认 200 最多 1000 )
 CFST_N: 200
 #延迟测速次数；单个 IP 延迟测速次数，为 1 时将过滤丢包的IP，TCP协议；(默认 4 次 )

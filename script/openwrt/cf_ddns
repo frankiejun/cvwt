@@ -3,80 +3,166 @@
 #使用脚本需要安装jq和timeout，新增openwrt专用cf_RE.sh文件，运行cf_RE.sh即可在openwrt安装jq和timeout两个扩展。
 #其他linux请自行安装jq和timeout。
 
-ipv4Regex="((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])";
+ipv4Regex="((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])"
 #默认关闭小云朵
-proxy="false";
-#验证cf账号信息是否正确
-res=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json");
-resSuccess=$(echo "$res" | jq -r ".success");
-if [[ $resSuccess != "true" ]]; then
-    pushmessage="登陆错误,检查cloudflare账号信息填写是否正确！"
-    source cf_push;
-    exit 1;
-fi
-echo "Cloudflare账号验证成功";
+proxy="false"
 
-CFST_P=$CFST_DN;
+CheckDelCFDns() {
+  
+  listDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?name=${CDNhostname}"
+  delDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records"
+  res=$(curl -s -X GET "$listDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json")
+  total_ct=$(echo "$res" | jq -r ".result_info.total_count")
+
+  echo "multFlag: $multFlag"
+
+  if ((total_ct > 1 || multFlag == 1)); then
+    echo " 循环删除 DNS 记录"
+    echo "total_ct:$total_ct"
+    for ((i = 0; i < total_ct; i++)); do
+      record_id=$(echo "$res" | jq -r ".result[$i].id")
+      # 输出正在删除的记录
+      echo "正在删除第 $((i + 1)) 条 DNS 记录，记录 ID: $record_id"
+      # 发出删除请求
+      rt=$(curl -s -X DELETE "${delDnsApi}/$record_id" -H "Content-Type: application/json" -H "X-Auth-Email: $x_email" -H "X-Auth-Key: $api_key")
+      succ=$(echo $rt | jq -r ".success")
+      if [ "$succ" != "true" ]; then
+        echo "删除dns记录失败,会可能引起后面更新问题，强制退出"
+        exit -1
+      fi
+
+    done
+  fi
+}
+
+InsertCF() {
+  ipAddr=$1
+  if [[ $ipAddr =~ $ipv4Regex ]]; then
+    recordType="A"
+  else
+    recordType="AAAA"
+  fi
+
+  echo "新增$CDNhostname 的DNS记录"
+  createDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records"
+  res=$(curl -s -X POST "$createDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
+  resSuccess=$(echo "$res" | jq -r ".success")
+
+  if [[ "$resSuccess" = "true" ]]; then
+    echo "$CDNhostname更新成功"
+  else
+    echo "$CDNhostname更新失败"
+  fi
+}
+
+UpInsetCF() {
+  #开始DDNS
+  ipAddr=$1
+  if [[ $ipAddr =~ $ipv4Regex ]]; then
+    recordType="A"
+  else
+    recordType="AAAA"
+  fi
+
+  listDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?type=${recordType}&name=${CDNhostname}"
+  createDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records"
+
+  res=$(curl -s -X GET "$listDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json")
+  recordId=$(echo "$res" | jq -r ".result[0].id")
+  recordIp=$(echo "$res" | jq -r ".result[0].content")
+
+  echo "recordIp:$recordIp"
+  if [[ $recordIp = "$ipAddr" ]]; then
+    echo "更新失败，获取最快的IP与云端相同"
+    resSuccess=false
+  elif [[ $recordId = "null" ]]; then
+    res=$(curl -s -X POST "$createDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
+    resSuccess=$(echo "$res" | jq -r ".success")
+  else
+    updateDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${recordId}"
+    res=$(curl -s -X PUT "$updateDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
+    resSuccess=$(echo "$res" | jq -r ".success")
+  fi
+
+  if [[ "$resSuccess" = "true" ]]; then
+    echo "$CDNhostname更新成功"
+  else
+    echo "$CDNhostname更新失败"
+  fi
+
+}
+
+#验证cf账号信息是否正确
+res=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json")
+resSuccess=$(echo "$res" | jq -r ".success")
+if [[ $resSuccess != "true" ]]; then
+  pushmessage="登陆错误,检查cloudflare账号信息填写是否正确！"
+  source cf_push
+  exit 1
+fi
+echo "Cloudflare账号验证成功"
+
+CFST_P=$CFST_DN
 #判断工作模式
-if [ "$IP_ADDR" = "ipv6" ] ; then
-    if [ ! -f "ipv6.txt" ]; then
-        echo "当前工作模式为ipv6，但该目录下没有【ipv6.txt】，请配置【ipv6.txt】。下载地址：https://github.com/XIU2/CloudflareSpeedTest/releases";
-        exit 2;
-        else
-            echo "当前工作模式为ipv6";
-    fi
-    else
-        echo "当前工作模式为ipv4";
+if [ "$IP_ADDR" = "ipv6" ]; then
+  if [ ! -f "ipv6.txt" ]; then
+    echo "当前工作模式为ipv6，但该目录下没有【ipv6.txt】，请配置【ipv6.txt】。下载地址：https://github.com/XIU2/CloudflareSpeedTest/releases"
+    exit 2
+  else
+    echo "当前工作模式为ipv6"
+  fi
+else
+  echo "当前工作模式为ipv4"
 fi
 
 #读取配置文件中的客户端
-if  [ "$clien" = "6" ] ; then
-	CLIEN=bypass;
-elif  [ "$clien" = "5" ] ; then
-		CLIEN=openclash;
-elif  [ "$clien" = "4" ] ; then
-	CLIEN=clash;
-elif  [ "$clien" = "3" ] ; then
-		CLIEN=shadowsocksr;
-elif  [ "$clien" = "2" ] ; then
-			CLIEN=passwall2;
-			else
-			CLIEN=passwall;
+if [ "$clien" = "6" ]; then
+  CLIEN=bypass
+elif [ "$clien" = "5" ]; then
+  CLIEN=openclash
+elif [ "$clien" = "4" ]; then
+  CLIEN=clash
+elif [ "$clien" = "3" ]; then
+  CLIEN=shadowsocksr
+elif [ "$clien" = "2" ]; then
+  CLIEN=passwall2
+else
+  CLIEN=passwall
 fi
 
 #判断是否停止科学上网服务
-if [ "$pause" = "false" ] ; then
-	echo "按要求未停止科学上网服务";
+if [ "$pause" = "false" ]; then
+  echo "按要求未停止科学上网服务"
 else
-	/etc/init.d/$CLIEN stop;
-	echo "已停止$CLIEN";
+  /etc/init.d/$CLIEN stop
+  echo "已停止$CLIEN"
 fi
 
-#判断是否配置测速地址 
-if [[ "$CFST_URL" == http* ]] ; then
-	CFST_URL_R="-url $CFST_URL";
+#判断是否配置测速地址
+if [[ "$CFST_URL" == http* ]]; then
+  CFST_URL_R="-url $CFST_URL"
 else
-	CFST_URL_R="";
+  CFST_URL_R=""
 fi
 
 #判断是否使用国家代码来筛选
 if [[ "$CCFLAG" == "true" ]]; then
-  USECC="-c ";
-else 
-  USECC=""; 
+  USECC="-c "
+else
+  USECC=""
 fi
 
 if [ ! -z "$CCODE" ]; then
-  CCODE_IS="-cc $CCODE ";
+  CCODE_IS="-cc $CCODE "
 else
-  CCODE_IS="";
-fi;
+  CCODE_IS=""
+fi
 
-if [ ! -z "$CF_ADDR" ];then
-  CF_ADDR=" -tp $CF_ADDR";
-else 
-  CF_ADDR=" -tp 443";
-fi;
+if [ ! -z "$CF_ADDR" ]; then
+  CF_ADDR=" -tp $CF_ADDR"
+else
+  CF_ADDR=" -tp 443"
+fi
 
 if [ -z "$ipfile" ]; then
   ipflag=""
@@ -85,85 +171,86 @@ else
 fi
 
 if [ "$IP_ADDR" = "ipv6" ]; then
-    #开始优选IPv6
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $USECC $CCODE_IS
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
-    else
-    #开始优选IPv4
-    echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
-    ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS
-fi
-echo "测速完毕";
-if [ "$pause" = "false" ] ; then
-		echo "按要求未重启科学上网服务";
-		sleep 3s;
+  #开始优选IPv6
+  ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $USECC $CCODE_IS
+  echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
 else
-		/etc/init.d/$CLIEN restart;
-		echo "已重启$CLIEN";
-		echo "为保证cloudflareAPI连接正常 将在3秒后开始更新域名解析";
-		sleep 3s;
+  #开始优选IPv4
+  echo "./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS"
+  ./CloudflareST $CFST_URL_R -t $CFST_T -n $CFST_N -dn $CFST_DN -tl $CFST_TL -tll $CFST_TLL -sl $CFST_SL -p $CFST_P $ipflag $ipfile $CF_ADDR $USECC $CCODE_IS
 fi
+echo "测速完毕"
+if [ "$pause" = "false" ]; then
+  echo "按要求未重启科学上网服务"
+  sleep 3s
+else
+  /etc/init.d/$CLIEN restart
+  echo "已重启$CLIEN"
+  echo "为保证cloudflareAPI连接正常 将在3秒后开始更新域名解析"
+  sleep 3s
+fi
+
+if [ -z $multip ]; then
+    multip=1
+    multFlag=0
+else
+    multFlag=1
+fi
+
 #开始循环
-echo "正在更新域名，请稍后...";
-x=0;
+echo "正在更新域名，请稍后..."
+x=0
 csvfile=""
 while [[ ${x} -lt $domain_num ]]; do
-    CDNhostname=${domains[$x]}
-    #获取优选后的ip地址
-  
-    if [ "$CCFLAG" = "true" ]; then
-      CountryCode=${countryCodes[$x]}
-      csvfile="$CountryCode"".csv"
-      echo "csvfile:$csvfile"
+  CDNhostname=${domains[$x]}
+  #获取优选后的ip地址
+
+  if [ "$CCFLAG" = "true" ]; then
+    CountryCode=${countryCodes[$x]}
+    csvfile="$CountryCode"".csv"
+    echo "csvfile:$csvfile"
+  else
+    csvfile="result.csv"
+  fi
+
+  #如果没有生成对应结果文件，跳过
+  if [ ! -e $csvfile ]; then
+    continue
+  fi
+
+  CheckDelCFDns
+
+  lineNo=0
+  ipcount=0
+  while read -r line; do
+    ((lineNo++))
+    if ((lineNo == 1)); then
+      continue
+    fi
+    IFS=, read -ra fields <<<"$line"
+    ipAddr=${fields[0]}
+
+    ((ipcount++))
+    echo "开始更新第${ipcount}个---$ipAddr"
+    if ((multFlag == 1)); then
+      InsertCF $ipAddr
     else
-      csvfile="result.csv"
+      UpInsetCF $ipAddr
     fi
 
-    #如果没有生成对应结果文件，跳过
-    if [ ! -e $csvfile ]; then
-      continue;
+    if ((ipcount >= multip)); then
+      break
     fi
 
-    ipAddr=$(sed -n "2,1p" $csvfile | awk -F, '{print $1}');
-    echo "开始更新第$((x + 1))个---$ipAddr";
-    #开始DDNS
-    if [[ $ipAddr =~ $ipv4Regex ]]; then
-        recordType="A";
-    else
-        recordType="AAAA";
-    fi
+  done <$csvfile
 
+  echo "完成$csvfile的ip更新!"
+  x=$((x + 1))
+  sleep 1s
 
-    listDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?type=${recordType}&name=${CDNhostname}";
-    createDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records";
+done  >informlog
 
-    res=$(curl -s -X GET "$listDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json");
-    recordId=$(echo "$res" | jq -r ".result[0].id");
-    recordIp=$(echo "$res" | jq -r ".result[0].content");
-
-    echo "recordIp:$recordIp"
-    if [[ $recordIp = "$ipAddr" ]]; then
-        echo "更新失败，获取最快的IP与云端相同";
-        resSuccess=false;
-    elif [[ $recordId = "null" ]]; then
-        res=$(curl -s -X POST "$createDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}");
-        resSuccess=$(echo "$res" | jq -r ".success");
-    else
-        updateDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${recordId}";
-        res=$(curl -s -X PUT "$updateDnsApi"  -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}");
-        resSuccess=$(echo "$res" | jq -r ".success");
-    fi
-
-    if [[ "$resSuccess" = "true" ]]; then
-        echo "$CDNhostname更新成功";
-    else
-        echo "$CDNhostname更新失败";
-    fi
-
-    x=$((x + 1));
-    sleep 3s;
- #会生成一个名为informlog的临时文件作为推送的内容。
-done > informlog
-pushmessage=$(cat informlog);
+#会生成一个名为informlog的临时文件作为推送的内容。
+pushmessage=$(cat informlog)
 source cf_push;
-exit 0;
+

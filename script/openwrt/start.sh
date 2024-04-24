@@ -14,7 +14,7 @@ ipzipfile="txt.zip"
 
 if [[ -e $ipzipfile ]]; then
   rm -rf $ipzipfile;
-  rm -rf *.csv
+#  rm -rf *.csv
 fi;
 
 echo "0.读取配置文件"
@@ -29,6 +29,7 @@ zone_id=$(yq eval ".zone_id" $configfile)
 api_key=$(yq eval ".api_key" $configfile)
 pause=$(yq eval ".pause" $configfile)
 clien=$(yq eval ".clien" $configfile)
+multip=$(yq eval ".multip" $configfile)
 CFST_URL=$(yq eval ".CFST_URL" $configfile)
 CFST_N=$(yq eval ".CFST_N" $configfile)
 CFST_T=$(yq eval ".CFST_T" $configfile)
@@ -87,7 +88,7 @@ handle_err() {
   /etc/init.d/$proxy start
 }
 
-trap handle_err ERR
+trap handle_err EXIT
 CLIEN=$(GetProxName $clien)
 ps -ef | grep $CLIEN | grep -v "grep" > /dev/null
 
