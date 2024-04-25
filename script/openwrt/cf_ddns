@@ -6,33 +6,78 @@
 ipv4Regex="((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])"
 #默认关闭小云朵
 proxy="false"
-
+chkDnsArr=()
+delDnsArr=()
+excludeIp=()
 CheckDelCFDns() {
-  
   listDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?name=${CDNhostname}"
-  delDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records"
+  excludeIp=()
+  delDnsArr=()
+  chkDnsArr=()
   res=$(curl -s -X GET "$listDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json")
   total_ct=$(echo "$res" | jq -r ".result_info.total_count")
 
-  echo "multFlag: $multFlag"
+  #echo "multFlag: $multFlag"
 
   if ((total_ct > 1 || multFlag == 1)); then
-    echo " 循环删除 DNS 记录"
-    echo "total_ct:$total_ct"
+    #echo "total_ct:$total_ct"
     for ((i = 0; i < total_ct; i++)); do
       record_id=$(echo "$res" | jq -r ".result[$i].id")
-      # 输出正在删除的记录
-      echo "正在删除第 $((i + 1)) 条 DNS 记录，记录 ID: $record_id"
-      # 发出删除请求
-      rt=$(curl -s -X DELETE "${delDnsApi}/$record_id" -H "Content-Type: application/json" -H "X-Auth-Email: $x_email" -H "X-Auth-Key: $api_key")
-      succ=$(echo $rt | jq -r ".success")
-      if [ "$succ" != "true" ]; then
-        echo "删除dns记录失败,会可能引起后面更新问题，强制退出"
-        exit -1
-      fi
-
+      ip=$(echo "$res" | jq -r ".result[$i].content")
+      chkDnsArr+=("$record_id"":""$ip")
     done
   fi
+}
+
+findRecInExcludeArr() {
+  local rec=$1
+  local sparr=()
+  IFS=':' read -ra sparr <<<"$rec"
+  # echo "findRecInExcludeArr():rec:$rec"
+  for ip in "${excludeIp[@]}"; do
+    #echo "left:${sparr[1]}|,right:$ip|"
+    if [ "${sparr[1]}" == "$ip" ]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+FilterRec() {
+  # echo "FilterRec()"
+  delDnsArr=()
+  for i in "${!chkDnsArr[@]}"; do
+    findRecInExcludeArr "${chkDnsArr[$i]}"
+    #不是排除之列，则加到删除队列
+    if [ $? -eq 1 ]; then
+      #echo "add to delarr"
+      local sparr=()
+      IFS=':' read -ra sparr <<<"${chkDnsArr[$i]}"
+      delDnsArr+=(${sparr[0]})
+    fi
+
+  done
+}
+
+RealDelDns() {
+  delDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records"
+
+  FilterRec
+  for index in "${!delDnsArr[@]}"; do
+    record_id=${delDnsArr[$index]}
+    # 输出正在删除的记录
+    #echo "正在删除第 $((index + 1)) 条 DNS 记录，记录 ID: $record_id"
+    # 发出删除请求
+    rt=$(curl -s -X DELETE "${delDnsApi}/$record_id" -H "Content-Type: application/json" -H "X-Auth-Email: $x_email" -H "X-Auth-Key: $api_key")
+    succ=$(echo $rt | jq -r ".success")
+    if [ "$succ" != "true" ]; then
+      echo "删除dns记录失败,会可能引起后面更新问题，强制退出"
+      exit 1
+    fi
+
+  done
+
 }
 
 InsertCF() {
@@ -50,9 +95,20 @@ InsertCF() {
 
   if [[ "$resSuccess" = "true" ]]; then
     echo "$CDNhostname更新成功"
+    return 0
   else
-    echo "$CDNhostname更新失败"
+    code=$(echo "$res" | jq -r ".errors[0].code")
+    #已有相同记录
+    if [ $code -eq 81057 ]; then
+      excludeIp+=($ipAddr)
+      echo "已有[$ipAddr] IP记录不做更新"
+      return 0
+    else
+      echo "$CDNhostname更新失败"
+      return 1
+    fi
   fi
+
 }
 
 UpInsetCF() {
@@ -74,7 +130,7 @@ UpInsetCF() {
   echo "recordIp:$recordIp"
   if [[ $recordIp = "$ipAddr" ]]; then
     echo "更新失败，获取最快的IP与云端相同"
-    resSuccess=false
+    resSuccess="false"
   elif [[ $recordId = "null" ]]; then
     res=$(curl -s -X POST "$createDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
     resSuccess=$(echo "$res" | jq -r ".success")
@@ -191,10 +247,10 @@ else
 fi
 
 if [ -z $multip ]; then
-    multip=1
-    multFlag=0
+  multip=1
+  multFlag=0
 else
-    multFlag=1
+  multFlag=1
 fi
 
 #开始循环
@@ -222,6 +278,7 @@ while [[ ${x} -lt $domain_num ]]; do
 
   lineNo=0
   ipcount=0
+  succflag="false"
   while read -r line; do
     ((lineNo++))
     if ((lineNo == 1)); then
@@ -234,6 +291,9 @@ while [[ ${x} -lt $domain_num ]]; do
     echo "开始更新第${ipcount}个---$ipAddr"
     if ((multFlag == 1)); then
       InsertCF $ipAddr
+      if [ $? -eq 0 ]; then
+        succflag="true"
+      fi
     else
       UpInsetCF $ipAddr
     fi
@@ -244,13 +304,15 @@ while [[ ${x} -lt $domain_num ]]; do
 
   done <$csvfile
 
+  if [ "$succflag" == "true" ]; then
+    RealDelDns
+  fi
   echo "完成$csvfile的ip更新!"
   x=$((x + 1))
   sleep 1s
 
-done  >informlog
+done >informlog
 
 #会生成一个名为informlog的临时文件作为推送的内容。
 pushmessage=$(cat informlog)
-source cf_push;
-
+source cf_push

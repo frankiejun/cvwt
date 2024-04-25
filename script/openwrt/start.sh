@@ -112,9 +112,11 @@ if [ -z $ipfile ]; then
     fi
   done
   
-  
+   
   if [ -e $ipzipfile ]; then
     unzip -o $ipzipfile
+  else
+    echo "Can't download the ip zip file, Check whether the agent software is disabled."
   fi
   
   
