@@ -271,6 +271,7 @@ while [[ ${x} -lt $domain_num ]]; do
 
   #如果没有生成对应结果文件，跳过
   if [ ! -e $csvfile ]; then
+    x=$((x + 1))
     continue
   fi
 

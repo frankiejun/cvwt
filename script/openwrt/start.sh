@@ -14,7 +14,7 @@ ipzipfile="txt.zip"
 
 if [[ -e $ipzipfile ]]; then
   rm -rf $ipzipfile;
-#  rm -rf *.csv
+  rm -rf *.csv
 fi;
 
 echo "0.读取配置文件"
