@@ -12,9 +12,9 @@ echo "configfile:$configfile, ipfile:$ipfile"
 
 ipzipfile="txt.zip"
 
+rm -rf *.csv
 if [[ -e $ipzipfile ]]; then
   rm -rf $ipzipfile;
-  rm -rf *.csv
 fi;
 
 echo "0.读取配置文件"
