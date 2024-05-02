@@ -20,11 +20,12 @@ CheckDelCFDns() {
   #echo "multFlag: $multFlag"
 
   if ((total_ct > 1 || multFlag == 1)); then
-    #echo "total_ct:$total_ct"
+   # echo "total_ct:$total_ct"
     for ((i = 0; i < total_ct; i++)); do
       record_id=$(echo "$res" | jq -r ".result[$i].id")
       ip=$(echo "$res" | jq -r ".result[$i].content")
       chkDnsArr+=("$record_id"":""$ip")
+      #echo "$record_id"":""$ip"
     done
   fi
 }
@@ -130,6 +131,7 @@ UpInsetCF() {
   echo "recordIp:$recordIp"
   if [[ $recordIp = "$ipAddr" ]]; then
     echo "更新失败，获取最快的IP与云端相同"
+    excludeIp+=($ipAddr)
     resSuccess="false"
   elif [[ $recordId = "null" ]]; then
     res=$(curl -s -X POST "$createDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
@@ -138,6 +140,7 @@ UpInsetCF() {
     updateDnsApi="https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${recordId}"
     res=$(curl -s -X PUT "$updateDnsApi" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json" --data "{\"type\":\"$recordType\",\"name\":\"$CDNhostname\",\"content\":\"$ipAddr\",\"proxied\":$proxy}")
     resSuccess=$(echo "$res" | jq -r ".success")
+    excludeIp+=($ipAddr)
   fi
 
   if [[ "$resSuccess" = "true" ]]; then
@@ -279,7 +282,6 @@ while [[ ${x} -lt $domain_num ]]; do
 
   lineNo=0
   ipcount=0
-  succflag="false"
   while read -r line; do
     ((lineNo++))
     if ((lineNo == 1)); then
@@ -292,9 +294,6 @@ while [[ ${x} -lt $domain_num ]]; do
     echo "开始更新第${ipcount}个---$ipAddr"
     if ((multFlag == 1)); then
       InsertCF $ipAddr
-      if [ $? -eq 0 ]; then
-        succflag="true"
-      fi
     else
       UpInsetCF $ipAddr
     fi
@@ -305,9 +304,7 @@ while [[ ${x} -lt $domain_num ]]; do
 
   done <$csvfile
 
-  if [ "$succflag" == "true" ]; then
-    RealDelDns
-  fi
+  RealDelDns
   echo "完成$csvfile的ip更新!"
   x=$((x + 1))
   sleep 1s
