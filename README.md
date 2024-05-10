@@ -65,9 +65,10 @@ Cloudflare 上建vless workers的及自动化优选IP的一揽子工具
 工具代码来自于:   https://github.com/XIU2/CloudflareSpeedTest  
 我这个在此基础上做了功能增强修改。  
 
-vless workers代码来自于:  https://github.com/3Kmfi6HP/EDtunnel
-trojan workers代码来自于：https://github.com/ca110us/epeius
-在原来代码基础上做了简单修改，统一了配置习惯。
+vless workers代码来自于:  https://github.com/3Kmfi6HP/EDtunnel   
+trojan workers代码来自于：https://github.com/ca110us/epeius   
+在原来代码基础上做了简单修改，统一了配置习惯。  
+
 
 ## License
 
