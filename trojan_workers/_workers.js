@@ -42,7 +42,7 @@ const worker_default = {
                     case `/${pwd}`:{
                         const host = request.headers.get('Host');
                         if ( 'PROXYIP' in env) {
-                          return new Response(getprotocol() + `://` + pwd + `@${host}:443/?type=ws&host=${host}&security=tls`, {
+                          return new Response(getprotocol() + `://` + pwd + `@${host}:443/?type=ws&host=${host}&security=tls#${host}`, {
                             status: 200,
                             headers: {
                                 "Content-Type": "text/plain;charset=utf-8",
