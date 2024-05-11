@@ -1,7 +1,7 @@
 // src/worker.js
 import { connect } from "cloudflare:sockets";
-let sha224Password = '08f32643dbdacf81d0d511f1ee24b06de759e90f8edf742bbdc57d88';
-let pwd = 'trojan'
+let sha224Password = '7e89e622d89becc4299c2d74494b9fb15759f2b0ff47b20eeae867e2';
+let pwd = 'abc123333'
 const proxyIPs = ["cdn.xn--b6gac.eu.org"]; //workers.cloudflare.cyou bestproxy.onecf.eu.org cdn-all.xn--b6gac.eu.org cdn.xn--b6gac.eu.org
 let proxyIP = proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
 let defaultAddr='www.visa.com.sg'
