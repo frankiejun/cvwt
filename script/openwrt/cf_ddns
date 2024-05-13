@@ -313,4 +313,18 @@ done >informlog
 
 #会生成一个名为informlog的临时文件作为推送的内容。
 pushmessage=$(cat informlog)
-source cf_push
+echo $pushmessage
+
+
+if [ ! -z "$sendType" ]; then
+  if [[ $sendType -eq 1 ]]; then
+    source cf_push
+  elif [[ $sendType -eq 2 ]]; then
+    source wxsend_jiang.sh
+  elif [[ $sendType -eq 3 ]]; then
+    source cf_push
+    source wxsend_jiang.sh
+  else
+    echo "$sendType is invalid type!"
+  fi
+fi

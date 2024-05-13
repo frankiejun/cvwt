@@ -42,6 +42,8 @@ CCODE=$(yq eval ".CCODE" $configfile)
 CF_ADDR=$(yq eval ".CF_ADDR" $configfile)
 telegramBotToken=$(yq eval ".telegramBotToken" $configfile)
 telegramBotUserId=$(yq eval ".telegramBotUserId" $configfile)
+sendType=$(yq eval ".sendType" $configfile)
+sendKey=$(yq eval ".sendKey" $configfile)
 
 IFS=, read -r -a domains <<< "$hostname";
 IFS=, read -r -a countryCodes <<< "$CCODE";
