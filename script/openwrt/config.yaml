@@ -46,6 +46,10 @@ CCODE:
 #CF服务器对应端口
 CF_ADDR: 443
 
+#推送开关, 1:TG, 2:WX, 3.both.
+sendType:
+   3
+
 ##TG推送设置
 #（填写即为开启推送，未填写则为不开启）
 #TG机器人token 例如：123456789: ABCDEFG...
@@ -53,4 +57,7 @@ telegramBotToken:
   
 telegramBotUserId: 
   
-  
+ 
+#微信推送, 关注微信公众号[方糖]，取得sendKey
+sendKey:
+
