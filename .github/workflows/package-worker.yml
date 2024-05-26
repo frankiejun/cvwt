@@ -14,7 +14,7 @@ jobs: # 工作流程中的任务
       uses: actions/checkout@v2 # 使用actions/checkout动作
 
     - name: Zip the worker file # 将_workers.js文件打包成worker.zip
-      run: zip workers.zip _workers.js # 使用zip命令直接打包
+      run: zip workers.zip vless_workers/_workers.js # 使用zip命令直接打包
 
     - name: Commit and push the packaged file # 提交并推送打包后的文件
       uses: EndBug/add-and-commit@v7 # 使用EndBug/add-and-commit动作
