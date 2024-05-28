@@ -152,6 +152,8 @@ UpInsetCF() {
 }
 
 #验证cf账号信息是否正确
+echo "cf_ddns():zone_id:$zone_id"
+echo "cf_ddns():api_key:$api_key"
 res=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}" -H "X-Auth-Email:$x_email" -H "X-Auth-Key:$api_key" -H "Content-Type:application/json")
 resSuccess=$(echo "$res" | jq -r ".success")
 if [[ $resSuccess != "true" ]]; then
@@ -221,4 +223,4 @@ while [[ ${x} -lt $domain_num ]]; do
   x=$((x + 1))
   sleep 1s
 
-done >informlog
+done >>informlog

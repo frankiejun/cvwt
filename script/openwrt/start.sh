@@ -12,10 +12,16 @@ echo "configfile:$configfile, ipfile:$ipfile"
 
 ipzipfile="txt.zip"
 
+//for test
 rm -rf *.csv
 if [[ -e $ipzipfile ]]; then
   rm -rf $ipzipfile
 fi
+
+if [[ -e informlog ]]; then
+  rm -rf informlog
+fi
+
 
 echo "0.读取配置文件"
 if [[ ! -e $configfile ]]; then
@@ -23,10 +29,6 @@ if [[ ! -e $configfile ]]; then
   exit 1
 fi
 
-x_email=$(yq eval ".x_email" $configfile)
-hostname=$(yq eval ".hostname" $configfile)
-zone_id=$(yq eval ".zone_id" $configfile)
-api_key=$(yq eval ".api_key" $configfile)
 pause=$(yq eval ".pause" $configfile)
 clien=$(yq eval ".clien" $configfile)
 multip=$(yq eval ".multip" $configfile)
@@ -45,25 +47,28 @@ telegramBotUserId=$(yq eval ".telegramBotUserId" $configfile)
 sendType=$(yq eval ".sendType" $configfile)
 sendKey=$(yq eval ".sendKey" $configfile)
 
-IFS=, read -r -a domains <<<"$hostname"
-IFS=, read -r -a countryCodes <<<"$CCODE"
+ChkHostnameAndCoutryCode() {
+  IFS=, read -r -a domains <<<"$hostname"
+  IFS=, read -r -a countryCodes <<<"$CCODE"
 
-domain_num=${#domains[@]}
-countryCode_num=${#countryCodes[@]}
+  domain_num=${#domains[@]}
+  countryCode_num=${#countryCodes[@]}
 
-if [ ${#domains[@]} -eq 0 ]; then
-  echo "hostname must be set in config file!"
-  exit 1
-fi
-
-#检查域名和国家代码是否一一对应
-if [ "$CCFLAG" = "true" ]; then
-  echo "domain_num:$domain_num, countryCode_num:$countryCode_num"
-  if [ $domain_num -ne $countryCode_num ]; then
-    echo "The name and country code must correspond one to one!"
-    exit 1
+  if [ ${#domains[@]} -eq 0 ]; then
+    echo "hostname must be set in config file!"
+    return 1
   fi
-fi
+
+  #检查域名和国家代码是否一一对应
+  if [ "$CCFLAG" = "true" ]; then
+    echo "domain_num:$domain_num, countryCode_num:$countryCode_num"
+    if [ $domain_num -ne $countryCode_num ]; then
+      echo "The name and country code must correspond one to one!"
+      return 1
+    fi
+  fi
+  return 0
+}
 
 GetProxName() {
   c=$1
@@ -212,7 +217,32 @@ else
   sleep 3s
 fi
 
-source ./ddns/cf_ddns
+if yq eval 'has("cloudflare")' $configfile; then
+
+  length=$(yq eval '.cloudflare | length' $configfile)
+
+  echo "length:$length"
+  for ((li = 0; li < $length; li++)); 
+  do
+    echo "Configuration Group $((li + 1)):"
+    x_email=$(yq eval ".cloudflare[$li].x_email" $configfile)
+    echo "x_email: $x_email"
+    hostname=$(yq eval ".cloudflare[$li].hostname" $configfile)
+    echo "hostname: $hostname"
+    zone_id=$(yq eval ".cloudflare[$li].zone_id" $configfile)
+    #echo "zone_id:$zone_id"
+    api_key=$(yq eval ".cloudflare[$li].api_key" $configfile)
+    #echo "api_key:$api_key"
+    ChkHostnameAndCoutryCode
+    if [ $? -eq 1 ]; then
+      echo "ChkHostnameAndCoutryCode() error!"
+      exit 1
+    fi
+
+    source ./ddns/cf_ddns
+  done
+
+fi
 
 #会生成一个名为informlog的临时文件作为推送的内容。
 pushmessage=$(cat informlog)
