@@ -97,7 +97,7 @@ handle_err() {
 }
 
 #trap handle_err EXIT
-trap handle_err HUP INT TERM
+trap handle_err HUP INT TERM EXIT
 CLIEN=$(GetProxName $clien)
 ps -ef | grep $CLIEN | grep -v "grep" >/dev/null
 
