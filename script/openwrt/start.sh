@@ -89,12 +89,15 @@ GetProxName() {
 }
 
 handle_err() {
-  echo "Restore background process."
-  proxy=$(GetProxName $clien)
-  /etc/init.d/$proxy start
+  if [ "$pause" = "true" ] ; then
+    echo "Restore background process."
+    proxy=$(GetProxName $clien)
+    /etc/init.d/$proxy start
+  fi
 }
 
-trap handle_err EXIT
+#trap handle_err EXIT
+trap handle_err HUP INT TERM EXIT
 CLIEN=$(GetProxName $clien)
 ps -ef | grep $CLIEN | grep -v "grep" >/dev/null
 
