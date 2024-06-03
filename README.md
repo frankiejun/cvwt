@@ -1,6 +1,6 @@
-# frankiejun/cvwt
+# Cloudflare 上建workers和pages节点及自动化优选IP的一揽子工具
 
-Cloudflare 上建vless workers的及自动化优选IP的一揽子工具
+
 
 优选工具使用CloudflareSpeedTest，用法如下：
 
