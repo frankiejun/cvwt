@@ -70,6 +70,6 @@ telegramBotToken:
 telegramBotUserId: 
   
  
-#微信推送, 关注微信公众号[方糖]，取得sendKey
+#微信推送, 通过https://sct.ftqq.com/r/13223 注册并登录server酱，取得sendKey
 sendKey:
 
