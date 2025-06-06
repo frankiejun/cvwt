@@ -1,10 +1,8 @@
-# Cloudflare 上建workers和pages节点及自动化优选IP的一揽子工具
+# Cloudflare 上建 workers 和 pages 节点及自动化优选 IP 的一揽子工具
 
+优选工具使用 CloudflareSpeedTest，用法如下：
 
-
-优选工具使用CloudflareSpeedTest，用法如下：
-
-``` cvs
+```cvs
 
 
 参数：
@@ -53,23 +51,32 @@
     -allip
         测速全部的IP；对 IP 段中的每个 IP (仅支持 IPv4) 进行测速；(默认 每个 /24 段随机测速一个 IP)
 
-    -c  
+    -c
         按国家代码分类输出文件
-    -cc 
-        指定国家代码选择IP，仅支持 IPv4；(默认 所有国家)    
+    -cc
+        指定国家代码选择IP，仅支持 IPv4；(默认 所有国家)
     -v
         打印程序版本 + 检查版本更新
     -h
         打印帮助说明
 ```
-工具代码来自于:   https://github.com/XIU2/CloudflareSpeedTest  
-我这个在此基础上做了功能增强修改。  
 
-vless workers代码来自于:  https://github.com/3Kmfi6HP/EDtunnel   
-trojan workers代码来自于：https://github.com/ca110us/epeius   
-在原来代码基础上做了简单修改，统一了配置习惯。  
+## workers 变量说明
 
+| 变量           | 是否必须 | 例子                                                                                                                                                                          | 说明                  |
+| -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `UUID`         | No       | `12345678-1234-1234-1234-123456789012`                                                                                                                                        | 唯一标识              |
+| `PROXYIP`      | No       | `1.1.1.1` or `cdn.xn--b6gac.eu.org` or with port `1.1.1.1:9443` or `[2a01:4f8:c2c:123f:64:5:6810:c55a]:443` or use multiple proxyIPs `1.1.1.1:80,2.2.2.2:443,example.com:443` | ProxyIP 格式          |
+| `SOCKS5`       | No       | `1.1.1.1:1080` or `user:pass@host:port`                                                                                                                                       | SOCKS5 代理           |
+| `SOCKS5_RELAY` | No       | `true` or `false`                                                                                                                                                             | true 时所有流量走代理 |
+
+## 鸣谢
+
+[IU2](https://github.com/XIU2/CloudflareSpeedTest), [6Kmfi6HP](https://github.com/6Kmfi6HP/EDtunnel), [ca110us](https://github.com/ca110us/epeius)
 
 ## License
 
 The GPL-3.0 License.
+
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
