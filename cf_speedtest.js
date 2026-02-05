@@ -1,49 +1,35 @@
 export default {
   async fetch(request) {
-    // 创建一个新的 URL 对象
-    let url = new URL(request.url);
-    let path = url.pathname.substring(1);
-    let isSecure = url.protocol.startsWith("https");
-    let bytes;
-    // 判断路径是否为空
-    if (!path) {
-      // 路径为空，将 bytes 赋值为 200MB
-      bytes = 200000000;
-    } else if (path === "locations") {
-      let targetUrl = `http${isSecure ? 's' : ''}://speed.cloudflare.com/locations`;
-      let cfRequest = new Request(targetUrl, request);
-      let response = await fetch(cfRequest);
-      return response;
-    } else {
-      // 其他路径，进行正常的处理
-      const regex = /^(\d+)([a-z]?)$/i;
-      const match = path.match(regex);
+    const url = new URL(request.url);
+    const path = url.pathname.substring(1);
+
+    let bytes = 100000000; // Default 100MB
+    if (path) {
+      const match = path.match(/^(\d+)([a-z]{0,2})$/i);
       if (!match) {
-        // 路径格式不正确，返回错误
-        return new Response("路径格式不正确", {
-          status: 400,
-        });
+        return new Response("路径格式不正确", { status: 400 });
       }
 
-      const bytesStr = match[1];
+      const size = parseInt(match[1], 10);
       const unit = match[2].toLowerCase();
-
-      // 转换单位
-      bytes = parseInt(bytesStr, 10);
-      if (unit === "k") {
-        bytes *= 1000;
-      } else if (unit === "m") {
-        bytes *= 1000000;
-      } else if (unit === "g") {
-        bytes *= 1000000000;
-      }
+      const multipliers = {
+        'k': 1000, 'kb': 1000,
+        'm': 1000000, 'mb': 1000000,
+        'g': 1000000000, 'gb': 1000000000
+      };
+      bytes = size * (multipliers[unit] || 1);
     }
 
-    let targetUrl = `http${isSecure ? 's' : ''}://speed.cloudflare.com/__down?bytes=${bytes}`;
-    let cfRequest = new Request(targetUrl, request);
-    let response = await fetch(cfRequest);
+    const targetUrl = `https://speed.cloudflare.com/__down?bytes=${bytes}`;
+    const headers = new Headers(request.headers);
+    headers.set('referer', 'https://speed.cloudflare.com/');
 
-    // 将测试结果反馈给用户
-    return response;
+    return fetch(new Request(targetUrl, {
+      method: request.method,
+      headers: headers,
+      body: request.body
+    }));
   }
 };
+
+

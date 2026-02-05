@@ -72,7 +72,8 @@
 
 ## 鸣谢
 
-[IU2](https://github.com/XIU2/CloudflareSpeedTest), [6Kmfi6HP](https://github.com/6Kmfi6HP/EDtunnel), [ca110us](https://github.com/ca110us/epeius)
+[IU2](https://github.com/XIU2/CloudflareSpeedTest), [6Kmfi6HP](https://github.com/6Kmfi6HP/EDtunnel), [ca110us](https://github.com/ca110us/epeius), [CM](https://github.com/cmliu/CF-Workers-SpeedTestURL)   
+
 
 ## License
 
