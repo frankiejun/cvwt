@@ -477,6 +477,8 @@ if yq eval 'has("cloudflare")' $configfile; then
         case " $keepList " in
           *" ${hostnames[$hi]} "*)
             echo "当前ip更快,跳过域名:${hostnames[$hi]}"
+            #写进informlog,不然这些域名在推送里就凭空消失了
+            echo "${hostnames[$hi]}当前ip已是最优结果,保持不变" >> informlog
             continue
             ;;
         esac
@@ -513,6 +515,11 @@ if yq eval 'has("cloudflare")' $configfile; then
 fi
 
 #会生成一个名为informlog的临时文件作为推送的内容。
+#一个域名都没动的话cf_ddns压根不会执行,informlog也就不会生成,
+#这时候自己补一条,不然推送会带着空内容去报错
+if [ ! -s informlog ]; then
+  echo "本次无需更新域名ip" > informlog
+fi
 pushmessage=$(cat informlog)
 echo $pushmessage
 
