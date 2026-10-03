@@ -238,17 +238,34 @@ GetDomainIp() {
   echo "$res" | jq -r '[(.result // [])[].content] | join(",")'
 }
 
-#测一下指定ip的下载速度(MB/s),测不出来返回空。这里故意不带-sl,不然测不出结果的ip连速度都拿不到
-TestIpSpeed() {
-  testip=$1
-  if [ -z "$testip" ]; then
+#把这些ip一次测完,结果写进current.csv,速度用GetDomainSpeed按ip取。
+#这里故意不带-sl,不然测不出结果的ip连速度都拿不到
+TestIps() {
+  testips=$1
+  if [ -z "$testips" ]; then
     return
   fi
-  ipnum=$(echo "$testip" | tr ',' '\n' | grep -c .)
+  ipnum=$(echo "$testips" | tr ',' '\n' | grep -c .)
   rm -f current.csv
-  echo "测一下当前ip的下载速度:$testip"
-  ./CloudflareST -ip "$testip" $CFST_URL_R -t $CFST_T -n $CFST_N -dn $ipnum -tl $CFST_TL -tll $CFST_TLL $CF_ADDR -o current.csv
-  GetBestSpeed current.csv
+  echo "测一下域名当前ip的下载速度:$testips"
+  ./CloudflareST -ip "$testips" $CFST_URL_R -t $CFST_T -n $CFST_N -dn $ipnum -tl $CFST_TL -tll $CFST_TLL $CF_ADDR -o current.csv
+}
+
+#从current.csv里查这几个ip中最快的下载速度(MB/s),查不到返回空
+GetDomainSpeed() {
+  if [[ ! -e current.csv ]]; then
+    return
+  fi
+  awk -F, -v ips="$1" '
+    NR>1 {
+      gsub(/ /,"",$NF)
+      if ($NF+0 <= max) next
+      n = split(ips, arr, ",")
+      for (i = 1; i <= n; i++) {
+        if (arr[i] == $1) { max = $NF+0; break }
+      }
+    }
+    END { if (max > 0) print max }' current.csv
 }
 
 if [ -z "$ipfile" ]; then
@@ -292,10 +309,16 @@ echo "测速完毕"
 #对比域名当前解析的ip和新优选出来的ip的速度。当前ip不比新ip慢就不换它,
 #即不把这个域名交给后面的DDNS更新,避免本来好用的ip被换成一个普通的ip
 keepList=""
-if [ "$IP_ADDR" != "ipv6" ] && yq eval 'has("cloudflare")' $configfile; then
+if [ "$IP_ADDR" != "ipv6" ] && yq eval 'has("cloudflare")' $configfile > /dev/null; then
   cfLength=$(yq eval '.cloudflare | length' $configfile)
   echo "3.Compare the current ip with the new ip."
-  for ((li = 0; li < $cfLength; li++)); do
+
+  #先把所有域名当前的ip收集齐,去重后一次测完,不用一个域名跑一次
+  allCusIp=""
+  curHostArr=()
+  curCcArr=()
+  curIpArr=()
+  for ((li = 0; li < cfLength; li++)); do
     x_email=$(yq eval ".cloudflare[$li].x_email" $configfile)
     hostname=$(yq eval ".cloudflare[$li].hostname" $configfile)
     zone_id=$(yq eval ".cloudflare[$li].zone_id" $configfile)
@@ -305,40 +328,68 @@ if [ "$IP_ADDR" != "ipv6" ] && yq eval 'has("cloudflare")' $configfile; then
       continue
     fi
 
-    for ((di = 0; di < $domain_num; di++)); do
-      if [ "$CCFLAG" = "true" ]; then
-        csvfile="${countryCodes[$di]}.csv"
-      else
-        csvfile="result.csv"
-      fi
-
-      #这次没测速出结果,交给后面的DDNS自己跳过
-      if [ ! -e $csvfile ]; then
-        continue
-      fi
-
-      newSpeed=$(GetBestSpeed $csvfile)
-      if [ -z "$newSpeed" ]; then
-        continue
-      fi
-
+    for ((di = 0; di < domain_num; di++)); do
       curIps=$(GetDomainIp "$zone_id" "${domains[$di]}" "$x_email" "$api_key")
-      echo "对比${domains[$di]},新ip速度:${newSpeed}MB/s,当前ip:${curIps:-无}"
-      curSpeed=$(TestIpSpeed "$curIps")
 
-      #当前ip已经失效或者根本解析不到ip,直接用新的
-      if [ -z "$curSpeed" ]; then
-        echo "当前ip测不出速度,更新${domains[$di]}"
+      #域名压根没有A记录,没什么好比的,后面该更新还是更新
+      if [ -z "$curIps" ]; then
         continue
       fi
 
-      if awk "BEGIN{exit !($curSpeed >= $newSpeed)}"; then
-        echo "当前ip(${curSpeed}MB/s)不比新ip(${newSpeed}MB/s)慢,保持${domains[$di]}不变"
-        keepList="$keepList ${domains[$di]}"
-      else
-        echo "新ip(${newSpeed}MB/s)更快,更新${domains[$di]}"
-      fi
+      curHostArr+=("${domains[$di]}")
+      curCcArr+=("${countryCodes[$di]}")
+      curIpArr+=("$curIps")
+
+      IFS=, read -ra ipArr <<<"$curIps"
+      for ip in "${ipArr[@]}"; do
+        case ",$allCusIp," in
+          *",$ip,"*) continue ;;
+        esac
+        if [ -z "$allCusIp" ]; then
+          allCusIp=$ip
+        else
+          allCusIp="$allCusIp,$ip"
+        fi
+      done
     done
+  done
+
+  #所有当前ip一次测完,结果写进current.csv
+  TestIps "$allCusIp"
+
+  for ((ii = 0; ii < ${#curHostArr[@]}; ii++)); do
+    if [ "$CCFLAG" = "true" ]; then
+      csvfile="${curCcArr[$ii]}.csv"
+    else
+      csvfile="result.csv"
+    fi
+
+    #这次没测速出结果,交给后面的DDNS自己跳过
+    if [ ! -e $csvfile ]; then
+      continue
+    fi
+
+    newSpeed=$(GetBestSpeed $csvfile)
+    if [ -z "$newSpeed" ]; then
+      continue
+    fi
+
+    curSpeed=$(GetDomainSpeed "${curIpArr[$ii]}")
+    echo "对比${curHostArr[$ii]},新ip速度:${newSpeed}MB/s,当前ip:${curIpArr[$ii]},当前ip速度:${curSpeed:-测不出}MB/s"
+
+    #当前ip已经失效或者测不出速度,直接用新的
+    if [ -z "$curSpeed" ]; then
+      echo "当前ip测不出速度,更新${curHostArr[$ii]}"
+      continue
+    fi
+
+    #用-v传值,不要把变量拼进awk程序里
+    if awk -v cur="$curSpeed" -v new="$newSpeed" 'BEGIN{exit !(cur>=new)}'; then
+      echo "当前ip(${curSpeed}MB/s)不比新ip(${newSpeed}MB/s)慢,保持${curHostArr[$ii]}不变"
+      keepList="$keepList ${curHostArr[$ii]}"
+    else
+      echo "新ip(${newSpeed}MB/s)更快,更新${curHostArr[$ii]}"
+    fi
   done
 fi
 
