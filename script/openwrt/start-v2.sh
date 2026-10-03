@@ -238,6 +238,38 @@ GetDomainIp() {
   echo "$res" | jq -r '[(.result // [])[].content] | join(",")'
 }
 
+#取结果文件里前几行cf_ddns会写进域名的ip,个数跟multip一致
+GetNewIps() {
+  newcsv=$1
+  if [[ ! -e $newcsv ]]; then
+    return
+  fi
+  if [ -z "$multip" ]; then
+    need=1
+  else
+    need=$multip
+  fi
+  awk -F, -v n="$need" 'NR>1 && c < n { gsub(/ /,"",$1); printf "%s%s", (c ? "," : ""), $1; c++ }' $newcsv
+}
+
+#curips和newips是不是同一组ip(个数相同且互相都包含),
+#也就是cf_ddns写完之后跟现在一模一样,换了等于没换
+IpSameIps() {
+  awk -v cur="$1" -v new="$2" 'BEGIN {
+    n = split(new, a, ",")
+    m = split(cur, b, ",")
+    if (n != m) exit 1
+    for (i = 1; i <= m; i++) {
+      hit = 0
+      for (j = 1; j <= n; j++) {
+        if (a[j] == b[i]) { hit = 1; break }
+      }
+      if (!hit) exit 1
+    }
+    exit 0
+  }'
+}
+
 #把这些ip一次测完,结果写进current.csv,速度用GetDomainSpeed按ip取。
 #这里故意不带-sl,不然测不出结果的ip连速度都拿不到
 TestIps() {
@@ -333,6 +365,25 @@ if [ "$IP_ADDR" != "ipv6" ] && yq eval 'has("cloudflare")' $configfile > /dev/nu
 
       #域名压根没有A记录,没什么好比的,后面该更新还是更新
       if [ -z "$curIps" ]; then
+        continue
+      fi
+
+      #新优选出来的就是当前这个ip,那比速度没意义,直接保持不变,连测速都省了
+      if [ "$CCFLAG" = "true" ]; then
+        csvfile="${countryCodes[$di]}.csv"
+      else
+        csvfile="result.csv"
+      fi
+      newIps=$(GetNewIps $csvfile)
+
+      #这次没测出结果,没得比,交给后面的DDNS自己跳过
+      if [ -z "$newIps" ]; then
+        continue
+      fi
+
+      if IpSameIps "$curIps" "$newIps"; then
+        echo "${domains[$di]}当前ip(${curIps})已经是最优结果,保持不变"
+        keepList="$keepList ${domains[$di]}"
         continue
       fi
 
