@@ -223,6 +223,34 @@ run_speedtest() {
   ./CloudflareST $cmd_args
 }
 
+#从CloudflareSpeedTest的结果文件里取最快的下载速度(MB/s)
+GetBestSpeed() {
+  speedfile=$1
+  if [[ ! -e $speedfile ]]; then
+    return
+  fi
+  awk -F, 'NR>1 { gsub(/ /,"",$NF); if ($NF+0 > max) max=$NF+0 } END { if (max > 0) print max }' $speedfile
+}
+
+#取域名当前解析的ip,只取A记录,多个ip用逗号分隔
+GetDomainIp() {
+  res=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${1}/dns_records?name=${2}&type=A" -H "X-Auth-Email:${3}" -H "X-Auth-Key:${4}" -H "Content-Type:application/json")
+  echo "$res" | jq -r '[(.result // [])[].content] | join(",")'
+}
+
+#测一下指定ip的下载速度(MB/s),测不出来返回空。这里故意不带-sl,不然测不出结果的ip连速度都拿不到
+TestIpSpeed() {
+  testip=$1
+  if [ -z "$testip" ]; then
+    return
+  fi
+  ipnum=$(echo "$testip" | tr ',' '\n' | grep -c .)
+  rm -f current.csv
+  echo "测一下当前ip的下载速度:$testip"
+  ./CloudflareST -ip "$testip" $CFST_URL_R -t $CFST_T -n $CFST_N -dn $ipnum -tl $CFST_TL -tll $CFST_TLL $CF_ADDR -o current.csv
+  GetBestSpeed current.csv
+}
+
 if [ -z "$ipfile" ]; then
   ipflag=""
   port=$(yq eval ".CF_ADDR" $configfile)
@@ -260,6 +288,60 @@ fi
 
 
 echo "测速完毕"
+
+#对比域名当前解析的ip和新优选出来的ip的速度。当前ip不比新ip慢就不换它,
+#即不把这个域名交给后面的DDNS更新,避免本来好用的ip被换成一个普通的ip
+keepList=""
+if [ "$IP_ADDR" != "ipv6" ] && yq eval 'has("cloudflare")' $configfile; then
+  cfLength=$(yq eval '.cloudflare | length' $configfile)
+  echo "3.Compare the current ip with the new ip."
+  for ((li = 0; li < $cfLength; li++)); do
+    x_email=$(yq eval ".cloudflare[$li].x_email" $configfile)
+    hostname=$(yq eval ".cloudflare[$li].hostname" $configfile)
+    zone_id=$(yq eval ".cloudflare[$li].zone_id" $configfile)
+    api_key=$(yq eval ".cloudflare[$li].api_key" $configfile)
+    ChkHostnameAndCoutryCode
+    if [ $? -eq 1 ]; then
+      continue
+    fi
+
+    for ((di = 0; di < $domain_num; di++)); do
+      if [ "$CCFLAG" = "true" ]; then
+        csvfile="${countryCodes[$di]}.csv"
+      else
+        csvfile="result.csv"
+      fi
+
+      #这次没测速出结果,交给后面的DDNS自己跳过
+      if [ ! -e $csvfile ]; then
+        continue
+      fi
+
+      newSpeed=$(GetBestSpeed $csvfile)
+      if [ -z "$newSpeed" ]; then
+        continue
+      fi
+
+      curIps=$(GetDomainIp "$zone_id" "${domains[$di]}" "$x_email" "$api_key")
+      echo "对比${domains[$di]},新ip速度:${newSpeed}MB/s,当前ip:${curIps:-无}"
+      curSpeed=$(TestIpSpeed "$curIps")
+
+      #当前ip已经失效或者根本解析不到ip,直接用新的
+      if [ -z "$curSpeed" ]; then
+        echo "当前ip测不出速度,更新${domains[$di]}"
+        continue
+      fi
+
+      if awk "BEGIN{exit !($curSpeed >= $newSpeed)}"; then
+        echo "当前ip(${curSpeed}MB/s)不比新ip(${newSpeed}MB/s)慢,保持${domains[$di]}不变"
+        keepList="$keepList ${domains[$di]}"
+      else
+        echo "新ip(${newSpeed}MB/s)更快,更新${domains[$di]}"
+      fi
+    done
+  done
+fi
+
 if [ "$pause" = "false" ]; then
   echo "按要求未重启科学上网服务"
   sleep 3s
@@ -282,6 +364,37 @@ if yq eval 'has("cloudflare")' $configfile; then
     echo "x_email: $x_email"
     hostname=$(yq eval ".cloudflare[$li].hostname" $configfile)
     echo "hostname: $hostname"
+
+    #把保持不变的域名从域名列表里去掉,这些域名不会被更新
+    if [ -n "$keepList" ]; then
+      newHostname=""
+      newCCODE=""
+      IFS=, read -ra hostnames <<<"$hostname"
+      IFS=, read -ra cccodes <<<"$CCODE"
+      for ((hi = 0; hi < ${#hostnames[@]}; hi++)); do
+        case " $keepList " in
+          *" ${hostnames[$hi]} "*)
+            echo "当前ip更快,跳过域名:${hostnames[$hi]}"
+            continue
+            ;;
+        esac
+        if [ -z "$newHostname" ]; then
+          newHostname="${hostnames[$hi]}"
+          newCCODE="${cccodes[$hi]}"
+        else
+          newHostname="$newHostname,${hostnames[$hi]}"
+          newCCODE="$newCCODE,${cccodes[$hi]}"
+        fi
+      done
+      hostname=$newHostname
+      CCODE=$newCCODE
+
+      if [ -z "$hostname" ]; then
+        echo "该组域名都保持不变,跳过"
+        continue
+      fi
+    fi
+
     zone_id=$(yq eval ".cloudflare[$li].zone_id" $configfile)
     #echo "zone_id:$zone_id"
     api_key=$(yq eval ".cloudflare[$li].api_key" $configfile)
