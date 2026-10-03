@@ -61,6 +61,25 @@
         打印帮助说明
 ```
 
+## OpenWrt 脚本：start.sh 与 start-v2.sh 的区别
+
+`script/openwrt/` 下有两个入口脚本，用法一样（`./start.sh config.yaml [ipfile]`），主要区别是 v2 多了「按国家分别测速」的功能。
+
+**start.sh（旧）**
+
+- 下载 IP 库后，把某个端口目录下的 `ALL.txt` 合并成一个 `ip.txt`
+- 把整个文件丢给 CloudflareSpeedTest 跑一次，固定输出 `result.csv`
+- 想按国家筛选？只能靠 CloudflareSpeedTest 自己的 `-cc` 参数，结果还是全混在一个文件里
+
+**start-v2.sh（新）**
+
+- 不再合并 `ALL.txt`，改成**按国家一个一个来**：配置里写 `CCODE: US,JP`，它就找 `./443/US.txt`、`./443/JP.txt`，每个国家单独测速一次，结果分别存成 `US.csv`、`JP.csv`
+- 某个国家的文件不存在就跳过并给个警告，不会整体失败
+- 这样下游更新 DNS 时，能按「域名对应国家」取对应国家那份结果（`ddns/cf_ddns` 就是这么读的：`CCFLAG: true` 时读 `${国家代码}.csv`，否则读 `result.csv`）
+- 另外顺手把「脚本中途出错后代理只启动不重启」的毛病修了，现在会先停再启
+
+**不变的**：暂停/恢复代理、测速参数、推送（Telegram / 微信）、多组 Cloudflare 配置的流程都一模一样。
+
 ## workers 变量说明
 
 | 变量           | 是否必须 | 例子                                                                                                                                                                          | 说明                  |
